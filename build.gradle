@@ -1,0 +1,47 @@
+import org.gradle.api.artifacts.transform.TransformParameters.None
+
+apply plugin: 'java'
+
+repositories {
+    mavenCentral()
+}
+
+def fooAttribute = Attribute.of('foo', Boolean)
+
+abstract class TransformThrows implements TransformAction<None> {
+    @Override
+    void transform(TransformOutputs outputs) {
+        throw new RuntimeException("If this has thrown we are actually running the transform! This is what we want!")
+    }
+}
+
+dependencies {
+    attributesSchema {
+        attribute fooAttribute
+    }
+
+    annotationProcessor('com.google.guava:guava:31.0.1-jre') {
+        attributes {
+            attribute fooAttribute, false
+        }
+    }
+
+    registerTransform(TransformThrows) {
+        def artifactType = Attribute.of("artifactType", String.class)
+        from.attribute(fooAttribute, false).attribute(artifactType, 'jar')
+        to.attribute(fooAttribute, true).attribute(artifactType, 'jar')
+    }
+}
+
+configurations.annotationProcessor {
+    attributes {
+        attribute fooAttribute, true
+    }
+}
+
+task resolveConfigurationAndHopefullyRunTransformAndThrowException {
+    doLast {
+        configurations.annotationProcessor.resolve()
+    }
+}
+
